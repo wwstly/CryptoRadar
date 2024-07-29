@@ -1,0 +1,70 @@
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+class CryptoRadar:
+    def __init__(self):
+        self.api_url = 'https://api.coingecko.com/api/v3'
+
+    def get_crypto_data(self, crypto_id: str) -> dict:
+        """Fetches current data for a specific cryptocurrency."""
+        url = f"{self.api_url}/coins/{crypto_id}"
+        response = requests.get(url)
+        return response.json()
+
+    def get_historical_data(self, crypto_id: str, days: int) -> pd.DataFrame:
+        """Fetches historical data for a specific cryptocurrency."""
+        url = f"{self.api_url}/coins/{crypto_id}/market_chart"
+        params = {
+            'vs_currency': 'usd',
+            'days': days,
+            'interval': 'daily'
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        prices = data.get('prices', [])
+        df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+        return df
+
+    def analyze_crypto_data(self, crypto_id: str) -> dict:
+        """Analyzes current metrics such as price, volume, and market cap."""
+        data = self.get_crypto_data(crypto_id)
+        if not data:
+            return {}
+        market_data = data.get('market_data', {})
+        return {
+            'current_price': market_data.get('current_price', {}).get('usd', 0),
+            'total_volume': market_data.get('total_volume', {}).get('usd', 0),
+            'market_cap': market_data.get('market_cap', {}).get('usd', 0)
+        }
+
+    def plot_price_trends(self, crypto_id: str, days: int):
+        """Plots price trends for a specific cryptocurrency over a given period."""
+        df = self.get_historical_data(crypto_id, days)
+        if df.empty:
+            print("No historical data found.")
+            return
+
+        plt.figure(figsize=(12, 6))
+        df['price'].plot()
+        plt.title(f'{crypto_id.capitalize()} Price Trend')
+        plt.xlabel('Date')
+        plt.ylabel('Price (USD)')
+        plt.grid(True)
+        plt.show()
+
+# Example Usage
+if __name__ == "__main__":
+    crypto_radar = CryptoRadar()
+
+    # Fetch and Display Cryptocurrency Data
+    crypto_id = 'bitcoin'  # Replace with the cryptocurrency ID you want to analyze
+    crypto_data = crypto_radar.analyze_crypto_data(crypto_id)
+    print(f"Current Data for {crypto_id.capitalize()}:")
+    print(crypto_data)
+
+    # Plot Historical Price Trends
+    crypto_radar.plot_price_trends(crypto_id=crypto_id, days=30)  # Last 30 days
